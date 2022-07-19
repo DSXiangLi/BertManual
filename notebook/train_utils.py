@@ -1,0 +1,104 @@
+# -*-coding:utf-8 -*-
+import numpy as np
+import torch
+import random
+import os
+from collections import deque
+from glob import glob
+
+
+def set_seed(seed_value=42):
+    """Set seed for reproducibility.
+    """
+    random.seed(seed_value)
+    np.random.seed(seed_value)
+    torch.manual_seed(seed_value)
+    torch.cuda.manual_seed_all(seed_value)
+
+
+class ModelSave():
+    """
+    Class to save the best model while training. If the current epoch's
+    validation loss is less than the previous least less, then save the
+    model state.
+    """
+
+    def __init__(self, ckpt_path, keep_ckpt_max=3, continue_train=False, save_best=True):
+        self.best_valid_loss = float('inf')
+        self.continue_train = continue_train
+        self.ckpt_path = ckpt_path
+        self.save_best = save_best
+        self.keep_ckpt_max = keep_ckpt_max  # 最多保存多少ckpt
+        self.ckpt_list = deque()
+        self.counter = 0
+
+    @staticmethod
+    def remove_dir(model_dir):
+        import shutil
+        try:
+            shutil.rmtree(model_dir)
+        except Exception as e:
+            print(f'Warning: {e} not exists')
+        else:
+            print(f'{model_dir} model cleaned')
+
+    def init(self):
+        """
+        Create model dir or rm model dir
+        """
+        if not self.continue_train:
+            self.remove_dir(self.ckpt_path)
+
+        if not os.path.exists(self.ckpt_path):
+            os.makedirs(self.ckpt_path)
+
+    def __call__(self, train_loss, valid_loss, epoch, model, optimizer, scheduler=None):
+        print(f'\n Saving model for epoch {epoch + 1}\n')
+        checkpoint = {
+            'epoch': epoch,
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'train_loss': train_loss,
+            'valid_loss': valid_loss
+        }
+
+        if scheduler:
+            checkpoint.update({'scheduler_state_dict': scheduler.state_dict()})
+
+        ckpt_file = f'{self.ckpt_path}/ckpt_{epoch}.pth'
+        torch.save(checkpoint, ckpt_file)
+        if ckpt_file not in self.ckpt_list:
+            self.ckpt_list.append(ckpt_file)
+
+        if len(self.ckpt_list) > self.keep_ckpt_max:
+            os.remove(self.ckpt_list.popleft())  # remove earliest ckpt
+
+        if self.save_best:
+            best_ckpt = f'{self.ckpt_path}/best_ckpt.pth'
+            if valid_loss < self.best_valid_loss:
+                self.best_valid_loss = valid_loss
+                print(f"current_valid_loss {valid_loss:<5.3f} < {self.best_valid_loss:<5.3f}")
+                print(f'Saving Best Model at {best_ckpt}')
+                torch.save(checkpoint, f'{self.ckpt_path}/ckpt_best.pth')
+
+
+def load_checkpoint(ckpt):
+    """
+    Checkpoint Loading, should be used along with ModelSave
+    1. try to locate *best.pth checkpoint
+    2. if not find the *.pth with biggest epoch
+    3. load state dict with different environment
+    """
+    files = glob(os.path.join(ckpt, '*best.pth'))
+    if not files:
+        file = sorted(glob(os.path.join(ckpt, '*.pth')))[-1]
+    else:
+        file = files[0]
+    if torch.cuda.is_available():
+        # Use saving environment
+        map_location = lambda storage, loc: storage.cuda()
+    else:
+        # pytorch0.4.0及以上版本
+        map_location = torch.device('cpu')
+
+    return torch.load(file, map_location=map_location)
