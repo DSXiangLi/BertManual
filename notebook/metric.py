@@ -74,8 +74,8 @@ def multi_cls_metrics(model, valid_loader, loss_fn, device):
         loss = loss_fn(logits, label_ids)
         val_loss.append(loss.item())
 
-        probs = torch.nn.functional.softmax(logits, dim=1)
-        preds = torch.argmax(probs)
+        probs = torch.nn.functional.softmax(logits, dim=-1)
+        preds = torch.argmax(probs, dim=-1)
         for metric in metrics.values():
             if 'auc' in metric or 'ap' in metric:
                 metric.update(probs, label_ids)
