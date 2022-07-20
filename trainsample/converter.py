@@ -57,6 +57,22 @@ def single_text_double_label(text_list, label1_list, label2_list, data_dir, outp
             f.write(json.dumps(Fmt(t, l1, l2)._asdict(), ensure_ascii=False) + '\n')
 
 
+def read_text(filename):
+    data = []
+    with open(filename, 'r') as f:
+        for line in f:
+            data.append(line.strip())
+    return data
+
+
+def read_json( filename):
+    data = []
+    with open(filename, 'r') as f:
+        for line in f:
+            data.append(json.loads(line.strip()))
+    return data
+
+
 def json2df(file):
     lines = []
     with open(file, 'r') as f:
@@ -64,7 +80,6 @@ def json2df(file):
             lines.append(json.loads(i))
     df = pd.DataFrame(lines)
     return df
-
 
 
 def clue_submit(data_dir, input, output, Idx2Label, Mapping=None):
@@ -80,7 +95,6 @@ def clue_submit(data_dir, input, output, Idx2Label, Mapping=None):
     if Mapping:
         #Remapping label id to original CLUE id
         df['label'] = df['label'].map(lambda x: Mapping[x])
-    return df
 
     with open(os.path.join(data_dir, output), 'w') as f:
         for idx, l, desc in zip(df['idx'], df['label'], df['label_desc']):
