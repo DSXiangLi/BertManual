@@ -3,6 +3,7 @@ import numpy as np
 import torch
 import random
 import os
+import operator
 from collections import deque
 from glob import glob
 
@@ -64,10 +65,10 @@ class ModelSave():
         if not os.path.exists(self.ckpt_path):
             os.makedirs(self.ckpt_path)
 
-    def __call__(self, train_loss, valid_loss, epoch, model, optimizer, scheduler=None):
-        print(f'\n Saving model for epoch {epoch + 1}\n')
+    def __call__(self, train_loss, valid_loss, epoch, global_step, model, optimizer, scheduler=None):
         checkpoint = {
             'epoch': epoch,
+            'global_step': global_step,
             'model_state_dict': model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
             'train_loss': train_loss,
@@ -77,7 +78,7 @@ class ModelSave():
         if scheduler:
             checkpoint.update({'scheduler_state_dict': scheduler.state_dict()})
 
-        ckpt_file = f'{self.ckpt_path}/ckpt_{epoch}.pth'
+        ckpt_file = f'{self.ckpt_path}/ckpt_{global_step}.pth'
         torch.save(checkpoint, ckpt_file)
         if ckpt_file not in self.ckpt_list:
             self.ckpt_list.append(ckpt_file)
@@ -89,9 +90,40 @@ class ModelSave():
             best_ckpt = f'{self.ckpt_path}/best_ckpt.pth'
             if valid_loss < self.best_valid_loss:
                 self.best_valid_loss = valid_loss
-                print(f"current_valid_loss {valid_loss:<5.3f} < {self.best_valid_loss:<5.3f}")
-                print(f'Saving Best Model at {best_ckpt}')
-                torch.save(checkpoint, f'{self.ckpt_path}/ckpt_best.pth')
+                torch.save(checkpoint, best_ckpt)
+
+
+class EarlyStop(object):
+    """
+    Run Early Stop on the end of each valid evaluation
+    """
+    mode_dict = {'min': operator.lt, 'max': operator.gt}
+
+    def __init__(self, monitor, mode='min', min_delta=0.0, patience=3, verbose=False):
+        self.monitor = monitor
+        self.mode = mode # monitor metric the lower/bigger the better
+        self.monitor_op = self.mode_dict[mode]
+        self.min_delta = min_delta if self.monitor_op == torch.gt else -min_delta
+        self.patience = patience
+        self.verbose = verbose
+        self.counter = 0
+        self.best_score = -float('inf') if self.monitor_op == operator.gt else float('inf')
+
+    def check(self, valid_metrics):
+        assert self.monitor not in valid_metrics, f'monitor metric {self.monitor} not in valid metrics'
+        cur_score = valid_metrics[self.monitor]
+        should_stop=False
+        if self.monitor_op(cur_score - self.min_delta, self.best_score):
+            self.counter = 0
+            self.best_score = cur_score
+        else:
+            self.counter +=1
+            if self.counter>=self.patience:
+                should_stop=True
+                reason = f"{self.monitor} did not improve in the last {self.patience} evaluation"
+                if self.verbose:
+                    print(reason)
+        return should_stop
 
 
 def load_checkpoint(ckpt):
@@ -114,3 +146,5 @@ def load_checkpoint(ckpt):
         map_location = torch.device('cpu')
 
     return torch.load(file, map_location=map_location)
+
+

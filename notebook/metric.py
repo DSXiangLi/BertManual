@@ -4,7 +4,7 @@ import numpy as np
 from torchmetrics import Accuracy, AUROC, AveragePrecision, F1Score, Recall, Precision
 
 
-def binary_cls_metrics(model, valid_loader, loss_fn, device, threshold=0.5):
+def binary_cls_metrics(model, valid_loader, device, threshold=0.5):
     """After the completion of each training epoch, measure the model's performance
     on our validation set.
     """
@@ -24,9 +24,8 @@ def binary_cls_metrics(model, valid_loader, loss_fn, device, threshold=0.5):
         input_ids, token_type_ids, attention_mask, label_ids = tuple(t.to(device) for t in batch.values())
 
         with torch.no_grad():
-            logits = model(input_ids, token_type_ids, attention_mask)
+            logits, loss = model(input_ids, token_type_ids, attention_mask, label_ids)
 
-        loss = loss_fn(logits, label_ids)
         val_loss.append(loss.item())
 
         probs = torch.nn.functional.softmax(logits, dim=1)
@@ -42,7 +41,7 @@ def binary_cls_metrics(model, valid_loader, loss_fn, device, threshold=0.5):
     return multi_metrics
 
 
-def multi_cls_metrics(model, valid_loader, loss_fn, device):
+def multi_cls_metrics(model, valid_loader, device):
     """After the completion of each training epoch, measure the model's performance
     on our validation set.
     """
@@ -69,9 +68,8 @@ def multi_cls_metrics(model, valid_loader, loss_fn, device):
         input_ids, token_type_ids, attention_mask, label_ids = tuple(t.to(device) for t in batch.values())
 
         with torch.no_grad():
-            logits = model(input_ids, token_type_ids, attention_mask)
+            logits,loss = model(input_ids, token_type_ids, attention_mask, label_ids)
 
-        loss = loss_fn(logits, label_ids)
         val_loss.append(loss.item())
 
         probs = torch.nn.functional.softmax(logits, dim=-1)
@@ -85,6 +83,53 @@ def multi_cls_metrics(model, valid_loader, loss_fn, device):
     multi_metrics = {key: metric.compute().item() for key, metric in metrics.items()}
     multi_metrics['val_loss'] = np.mean(val_loss)
     return multi_metrics
+
+
+def seq_tag_metrics(model, valid_loader, device):
+    model.eval()
+
+    # Tracking variables
+    metrics = {}
+    for avg in ['micro', 'macro']:
+        metrics.update({
+            f'acc_{avg}': Accuracy(average=avg, num_classes=model.label_size).to(device),
+            f'f1_{avg}': F1Score(num_classes=model.label_size).to(device),
+            f'recall_{avg}': Recall(average=avg, num_classes=model.label_size).to(device),
+            f'precision_{avg}': Precision(average=avg, num_classes=model.label_size).to(device)
+        })
+    val_loss = []
+
+    for batch in valid_loader:
+        input_ids, token_type_ids, attention_mask, label_ids = tuple(t.to(device) for t in batch.values())
+
+        with torch.no_grad():
+            preds, loss = model(input_ids, token_type_ids, attention_mask, label_ids)
+
+        val_loss.append(loss.item())
+        # apply mask to label and pred: mask CLS, SEP, PAD
+        mask = torch.logical_and(attention_mask.view(-1) == 1, label_ids.view(-1) >=0)
+        preds = preds.view(-1)[mask]
+        label_ids = label_ids.view(-1)[mask]
+        for metric in metrics.values():
+                metric.update(preds, label_ids)
+
+    multi_metrics = {key: metric.compute().item() for key, metric in metrics.items()}
+    multi_metrics['val_loss'] = np.mean(val_loss)
+    return multi_metrics
+
+
+def tag_cls_log(epoch, tag_metrics):
+    print("\n")
+    print(f"{'Epoch':^7} | {'Macro Acc':^9} | {'Macro Precision':^15} | {'Macro Recall':^12} | {'Macro F1':^9}")
+    print('-' * 70)
+    print(f"{epoch + 1:^7} | {tag_metrics['acc_macro']:^9.3%} | {tag_metrics['precision_macro']:^15.3%} |",
+          f"{tag_metrics['recall_macro']:^12.3%} | {tag_metrics['f1_macro']:^9.3%} ")
+
+    print(f"{'Epoch':^7} | {'Micro Acc':^9} | {'Micro Precision':^15} | {'Micro Recall':^12} | {'Micro F1':^9}")
+    print('-' * 70)
+    print(f"{epoch + 1:^7} | {tag_metrics['acc_micro']:^9.3%} | {tag_metrics['precision_micro']:^15.3%} |",
+          f"{tag_metrics['recall_micro']:^12.3%} | {tag_metrics['f1_micro']:^9.3%} ")
+    print("\n")
 
 
 def binary_cls_log(epoch, binary_metrics):
