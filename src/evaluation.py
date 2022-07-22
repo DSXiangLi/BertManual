@@ -30,31 +30,27 @@ def classification_inference(model, data_loader, device):
     return output
 
 
-def seqlabel_inference(model, data_loader, device):
-    model.eval()
+def seqlabel_inference(data_loader, model):
+    """
+    Sequence Labeling Inference
+        Return: preds list[list(real seq len)]
+    """
+    model.eval() 
 
     all_preds = []
-    all_probs = []
-    # for seqlbel predict is done on
+    # for seqlbel predict is done on 
     for batch in data_loader:
         # Load batch to GPU
         input_ids, token_type_ids, attention_mask, label_ids = tuple(t.to(device) for t in batch.values())
         # Compute logits
         with torch.no_grad():
-            logits = model(input_ids, token_type_ids, attention_mask)[0]
-            mask = attention_mask[0] == 1
-            logits = logits[0][mask]  # remove batch dim
-            probs = torch.nn.functional.softmax(logits, dim=-1).cpu().numpy()
-        probs = probs[1:-1]  # remove CLS & SEP
-        preds = np.argmax(probs, axis=-1)
+            preds = model(input_ids, token_type_ids, attention_mask)[0]
+            mask = attention_mask[0].bool()
+        # remove PAD & CLS & SEP: real sequence len 
+        preds = preds[0][mask][1:-1]
         all_preds.append(preds.tolist())
-        all_probs.append(probs.tolist())
 
-    output = {
-        'pred': all_preds,
-        'prob': all_probs
-    }
-    return output
+    return all_preds
 
 
 def binary_cls_report(probs, labels, thresholds):
