@@ -7,7 +7,7 @@ classification_report
 from itertools import chain
 
 
-def classification_inference(data_loader, model, device):
+def classification_inference(model, data_loader, device):
     model.eval()
 
     all_preds = []
@@ -30,7 +30,7 @@ def classification_inference(data_loader, model, device):
     return output
 
 
-def seqlabel_inference(data_loader, model, device):
+def seqlabel_inference(model, data_loader, device):
     model.eval()
 
     all_preds = []
