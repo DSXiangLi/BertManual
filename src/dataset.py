@@ -31,14 +31,15 @@ class SeqDataset(Dataset):
 
 
 class SeqLabelDataset(Dataset):
-    def __init__(self, file_name, max_seq_len, tokenizer, data_loader):
+    def __init__(self, file_name, max_seq_len, tokenizer, data_loader, label2idx):
         self.raw_data = data_loader(file_name)
         self.max_seq_len = max_seq_len
         self.tokenizer = tokenizer
         self.features = []
         self.labels = []
-        self.build_feature()
+        self.label2idx = label2idx
         self.has_label = False
+        self.build_feature()
 
     def build_feature(self):
         if self.raw_data[0].get('label'):
@@ -49,10 +50,10 @@ class SeqLabelDataset(Dataset):
                                                  truncation=True, max_length=self.max_seq_len)
             self.features.append(feature)
             if self.has_label:
-                # set CLS, SEP, PAD to -100 in label, so that they will be ignored in loss calculation
+                # set CLS, SEP, PAD to 'O' in label, so that they won't impact transition
                 label = data['label'][:(self.max_seq_len - 2)]
-                label = [-100] + label + [-100]
-                label += [-100] * (self.max_seq_len - len(label))
+                label = [self.label2idx['O']] + label + [self.label2idx['O']]
+                label += [self.label2idx['O']] * (self.max_seq_len - len(label))
                 self.labels.append(label)
 
     def __getitem__(self, idx):
