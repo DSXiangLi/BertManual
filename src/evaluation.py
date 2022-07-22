@@ -103,3 +103,25 @@ def multi_cls_report(probs, labels, idx2label):
     label_names = idx2label.values()
     report = classification_report(labels, predictions, target_names=label_names)
     return report
+
+
+def seqlabel_report(preds, labels, idx2label):
+    """
+    Sequence Label task evalutaion 
+    preds: list[list(real seq len)] sequence label prediction 
+    labels: list[list(real seq len)]
+    idx2label: label_id. to label_name mapping
+    """
+    preds = list(chain(*preds))
+    labels = list(chain(*labels))
+    
+    tag_report = tag_cls_report(labels, preds, target_names=idx2label.values())
+    labels = [idx2label[i] for i in labels]
+    preds = [idx2label[i] for i in preds]
+    span_report = span_cls_report([labels], [preds], digits=3)
+    
+    text = '='*20 + 'Tag level report' + '='*20 + '\n\n'
+    text += tag_report + '\n\n'
+    text += '='*20 + 'Span level report' + '='*20 + '\n\n'
+    text += span_report
+    return text
