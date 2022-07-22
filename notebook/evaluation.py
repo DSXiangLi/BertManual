@@ -1,7 +1,10 @@
 # -*-coding:utf-8 -*-
 import torch
-from torch import nn
+import pandas as pd
 import numpy as np
+from sklearn.metrics import roc_auc_score, average_precision_score, precision_score, recall_score, accuracy_score,\
+classification_report
+from itertools import chain
 
 
 def classification_inference(data_loader, model, device):
@@ -25,3 +28,78 @@ def classification_inference(data_loader, model, device):
         'prob': all_probs
     }
     return output
+
+
+def seqlabel_inference(data_loader, model, device):
+    model.eval()
+
+    all_preds = []
+    all_probs = []
+    # for seqlbel predict is done on
+    for batch in data_loader:
+        # Load batch to GPU
+        input_ids, token_type_ids, attention_mask, label_ids = tuple(t.to(device) for t in batch.values())
+        # Compute logits
+        with torch.no_grad():
+            logits = model(input_ids, token_type_ids, attention_mask)[0]
+            mask = attention_mask[0] == 1
+            logits = logits[0][mask]  # remove batch dim
+            probs = torch.nn.functional.softmax(logits, dim=-1).cpu().numpy()
+        probs = probs[1:-1]  # remove CLS & SEP
+        preds = np.argmax(probs, axis=-1)
+        all_preds.append(preds.tolist())
+        all_probs.append(probs.tolist())
+
+    output = {
+        'pred': all_preds,
+        'prob': all_probs
+    }
+    return output
+
+
+def binary_cls_report(probs, labels, thresholds):
+    """
+    二分类任务Evaluation
+        probs: (n_samples, 2)
+        labels: (n_samples,)
+        threhoslds: 计算不同阈值下的precision，recall和f1
+    """
+    probs = [i[1] for i in probs]
+    auc = roc_auc_score(labels, probs)
+    ap = average_precision_score(labels, probs)
+    n_sample = len(probs)
+    n_pos = sum(labels)
+    # Precision & Recall by threshold
+    result = []
+    for thr in thresholds:
+        tmp = [int(i > thr) for i in probs]
+        precision = precision_score(labels, tmp)
+        recall = recall_score(labels, tmp)
+        accuracy = accuracy_score(labels, tmp)
+        result.append((thr, sum(tmp), precision, recall, accuracy, auc, ap, n_sample, n_pos))
+
+    df = pd.DataFrame(result, columns=['threshold', 'n', 'precision', 'recall', 'accuracy', 'auc', 'ap','total','total_pos'])
+    df = df.to_string(formatters={'threhsold': "{:.2f}".format,
+                                  'n': "{0:d}".format, 'precision': "{:.1%}".format,
+                                  'recall': "{:.1%}".format, 'accuracy': "{:.1%}".format,
+                                  'auc': "{:.1%}".format,'ap': "{:.1%}".format,
+                                  'total': '{0:d}'.format, 'total_pos': '{0:d}'.format
+                                  })
+    return df
+
+
+def multi_cls_report(probs, labels, idx2label):
+    """
+    多分类任务 Evaluation
+        probs: (n_samples, label_size)
+        labels: (n_samples,)
+        idx2label: labelid 到分类名称的映射
+    支持
+    1. Overall Accuracy, AUC, AP
+    2. 分label的precision， recall，f1
+    3. micro, macro: precision, recall, f1
+    """
+    predictions = np.argmax(probs, axis=-1)
+    label_names = idx2label.values()
+    report = classification_report(labels, predictions, target_names=label_names)
+    return report

@@ -1,8 +1,10 @@
 # -*-coding:utf-8 -*-
+import torch
 from torch import nn
 from transformers import BertModel
-from .loss import seqlabel_loss_wrapper
+from loss import seqlabel_loss_wrapper
 from layers.crf import CRF
+
 
 class BertClassifier(nn.Module):
     """Bert Model for Classification Tasks.
@@ -50,7 +52,6 @@ class BertSoftmax(nn.Module):
         return output
 
 
-
 class BertCrf(nn.Module):
     def __init__(self, pretrain_model, label_size, dropout):
         super(BertCrf, self).__init__()
@@ -67,9 +68,9 @@ class BertCrf(nn.Module):
         sequence_output = outputs[0]
         sequence_output = self.dropout_layer(sequence_output)
         logits = self.classifier(sequence_output)
-        preds = self.crf.decode(emissions=logits, mask=attention_mask>0)
+        preds = torch.tensor(self.crf.decode(emissions=logits, mask=attention_mask.bool()))
         outputs = (preds,)
         if label_ids is not None:
-            loss = self.crf(emissions=logits, tags=label_ids, mask=attention_mask>0)
-            outputs += (-1*loss, )
+            log_likelihood = self.crf(emissions=logits, tags=label_ids, mask=attention_mask.bool(), reduction='mean')
+            outputs += (-1*log_likelihood, )
         return outputs

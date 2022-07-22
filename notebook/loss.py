@@ -1,5 +1,6 @@
 # -*-coding:utf-8 -*-
 import torch
+
 def seqlabel_loss_wrapper(logits, label_ids, attention_mask, loss_func):
     # remove padding and CLS, SEP from loss calcualtion
     mask = torch.logical_and(attention_mask.view(-1) == 1, label_ids.view(-1)>=0)

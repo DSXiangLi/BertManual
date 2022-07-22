@@ -5,8 +5,14 @@ from torchmetrics import Accuracy, AUROC, AveragePrecision, F1Score, Recall, Pre
 
 
 def binary_cls_metrics(model, valid_loader, device, threshold=0.5):
-    """After the completion of each training epoch, measure the model's performance
-    on our validation set.
+    """
+    Binary Classification Metircs， support
+    - Macro/micro average
+    - F1, precision, recall
+    - average precision
+    - AUC
+    - Accuracy
+    - loss
     """
     model.eval()
 
@@ -42,8 +48,14 @@ def binary_cls_metrics(model, valid_loader, device, threshold=0.5):
 
 
 def multi_cls_metrics(model, valid_loader, device):
-    """After the completion of each training epoch, measure the model's performance
-    on our validation set.
+    """
+    Multi class classification Metics
+    - Macro/micro average
+    - F1, precision, recall
+    - average precision: micro only
+    - AUC: micro only
+    - Accuracy
+    - loss
     """
     model.eval()
 
@@ -86,6 +98,13 @@ def multi_cls_metrics(model, valid_loader, device):
 
 
 def seq_tag_metrics(model, valid_loader, device):
+    """
+    Sequence Labelling task seq level metircs, supported
+    - Macro/micro average
+    - F1, precision, recall
+    - Accuracy
+    - loss
+    """
     model.eval()
 
     # Tracking variables
