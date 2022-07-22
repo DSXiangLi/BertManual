@@ -51,26 +51,36 @@ class BertSoftmax(nn.Module):
             output += (loss,)
         return output
 
+def pad_sequence(input_, pad_len=None, pad_value=0):
+    """
+    Pad List[List] sequence to same length
+    """
+    output = [] 
+    for i in input_:
+        output.append(i + [pad_value] * (pad_len-len(i)))
+    return output    
+
 
 class BertCrf(nn.Module):
     def __init__(self, pretrain_model, label_size, dropout):
         super(BertCrf, self).__init__()
         self.label_size = label_size
         self.bert = BertModel.from_pretrained(pretrain_model)
-        self.dropout_layer = nn.Dropout(dropout)
+        self.dropout = nn.Dropout(dropout)
         self.classifier = nn.Linear(self.bert.config.hidden_size, self.label_size)
         self.crf = CRF(num_tags=self.label_size, batch_first=True)
-
+        
     def forward(self, input_ids, token_type_ids, attention_mask, label_ids=None):
         outputs = self.bert(input_ids = input_ids,
                             attention_mask=attention_mask,
                             token_type_ids=token_type_ids)
         sequence_output = outputs[0]
-        sequence_output = self.dropout_layer(sequence_output)
+        sequence_output = self.dropout(sequence_output)
         logits = self.classifier(sequence_output)
-        preds = torch.tensor(self.crf.decode(emissions=logits, mask=attention_mask.bool()))
-        outputs = (preds,)
+        preds = self.crf.decode(emissions=logits, mask=attention_mask.bool())
+        preds= pad_sequence(preds, pad_len=input_ids.size()[-1])
+        outputs = (torch.tensor(preds, device=logits.device),)
         if label_ids is not None:
             log_likelihood = self.crf(emissions=logits, tags=label_ids, mask=attention_mask.bool(), reduction='mean')
-            outputs += (-1*log_likelihood, )
+            outputs += (-1*log_likelihood, ) 
         return outputs
