@@ -110,7 +110,7 @@ class EarlyStop(object):
         self.best_score = -float('inf') if self.monitor_op == operator.gt else float('inf')
 
     def check(self, valid_metrics):
-        assert self.monitor not in valid_metrics, f'monitor metric {self.monitor} not in valid metrics'
+        assert self.monitor in valid_metrics, f'monitor metric {self.monitor} not in valid metrics'
         cur_score = valid_metrics[self.monitor]
         should_stop=False
         if self.monitor_op(cur_score - self.min_delta, self.best_score):
