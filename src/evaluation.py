@@ -3,7 +3,8 @@ import torch
 import pandas as pd
 import numpy as np
 from sklearn.metrics import roc_auc_score, average_precision_score, precision_score, recall_score, accuracy_score,\
-classification_report
+classification_report as tag_cls_report
+from seqeval.metrics import classification_report as span_cls_report
 from itertools import chain
 
 
@@ -14,11 +15,11 @@ def classification_inference(model, data_loader, device):
     all_probs = []
     for batch in data_loader:
         # Load batch to GPU
-        input_ids, token_type_ids, attention_mask = tuple(t.to(device) for t in batch.values())
+        inputs = tuple(t.to(device) for t in batch.values())
 
         # Compute logits
         with torch.no_grad():
-            logits = model(input_ids, token_type_ids, attention_mask)[0] # ignore label for test
+            logits = model(inputs)[0] # ignore label for test
             probs = torch.nn.functional.softmax(logits, dim=-1).cpu().numpy()
         all_preds += np.argmax(probs, axis=-1).tolist()
         all_probs += probs.tolist()
