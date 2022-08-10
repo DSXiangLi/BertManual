@@ -6,7 +6,15 @@ class GensimTokenizer(object):
     """
     Word Embedding Tokenizer Adapter
     """
-    def __init__(self, w2v, addon_vocab=('[UNK]', '[PAD]','[SEP]'), keep_oov=True):
+    UNK = '[UNK]'
+    PAD = '[PAD]'
+    SEP = '[SEP]'
+
+    addon_vocab = {'[UNK]': 'normal',
+                   '[PAD]': 'zero',
+                   '[SEP]': 'normal'}
+
+    def __init__(self, w2v, keep_oov=True):
         self.w2v = w2v
         self.keep_oov = keep_oov
         self.vocab2idx = None
@@ -14,7 +22,6 @@ class GensimTokenizer(object):
         self._embedding = None
         self.embedding_size = None
         self.vocab_size = None
-        self.addon_vocab = addon_vocab
         self.init_vocab()
 
     @property
@@ -28,14 +35,18 @@ class GensimTokenizer(object):
         self._embedding = np.array(self.w2v.wv.vectors)
         self.vocab_size = len(self.vocab2idx)
         self.embedding_size = self.embedding.shape[-1]
-        for i in self.addon_vocab:
-            self._add_vocab(i)
+        for vocab, value in self.addon_vocab.items():
+            self._add_vocab(vocab, value)
 
-    def _add_vocab(self, vocab):
+    def _add_vocab(self, vocab, value):
         self.vocab2idx.update({vocab: self.vocab_size})
         self.vocab_size += 1
-        self._embedding = np.vstack((self._embedding,
-                                     np.random.normal(0, 1, size=(1, self.embedding_size))))
+        if value == 'zero':
+            self._embedding = np.vstack((self._embedding,
+                                         np.zeros((1, self.embedding_size))))
+        else:
+            self._embedding = np.vstack((self._embedding,
+                                         np.random.normal(0, 1, (1, self.embedding_size))))
 
     def convert_tokens_to_ids(self, tokens):
         ids = []
@@ -43,7 +54,7 @@ class GensimTokenizer(object):
             if i in self.vocab2idx:
                 ids.append(self.vocab2idx[i])
             elif self.keep_oov:
-                ids.append(self.vocab2idx['[UNK]'])
+                ids.append(self.vocab2idx[self.UNK])
             else:
                 pass
         return ids
