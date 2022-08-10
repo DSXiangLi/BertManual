@@ -7,9 +7,12 @@ class Textrcnn(nn.Module):
     """
     Bilstm/GRU stack CNN Layer
     """
-    def __init__(self, tp, embedding=None):
+    def __init__(self, tp):
         super(Textrcnn, self).__init__()
-        self.embedding = nn.Embedding.from_pretrained(torch.tensor(embedding, dtype=torch.float32))
+        if tp.get('embedding') is None:
+            self.embedding = nn.Embedding(tp.vocab_size, tp.embedding_dim)
+        else:
+            self.embedding = nn.Embedding.from_pretrained(torch.tensor(tp.embedding, dtype=torch.float32))
         self.loss_fn = tp.loss_fn
         self.label_size = tp.label_size
 
@@ -40,8 +43,8 @@ class Textrcnn(nn.Module):
         self.dropout = nn.Dropout(tp.dropout_rate)
         self.fc = nn.Linear(tp.filter_size, tp.label_size)
 
-    def forward(self, token_ids, label_ids=None):
-        x = self.embedding(token_ids)  # (batch_size, seq_len, emb_dim)
+    def forward(self, features):
+        x = self.embedding(features['token_ids'])  # (batch_size, seq_len, emb_dim)
 
         # 1. lstm/gru layer
         rnn_x = self.rnn(x)[0]  # output: (batch_size, seq_len, hidden_size [*2 if bilstm])
@@ -55,7 +58,7 @@ class Textrcnn(nn.Module):
 
         logits = self.fc(x)
         output = (logits,)
-        if label_ids is not None:
-            loss = self.loss_fn(logits, label_ids)
+        if features.get('label') is not None:
+            loss = self.loss_fn(logits, features['label'])
             output += (loss,)
         return output

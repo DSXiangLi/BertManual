@@ -9,9 +9,12 @@ class Textrnn(nn.Module):
     """
         1 layer RNN[LSTM/GRU], output last hidden state for prediction
     """
-    def __init__(self, tp, embedding=None):
+    def __init__(self, tp):
         super(Textrnn, self).__init__()
-        self.embedding = nn.Embedding.from_pretrained(torch.tensor(embedding, dtype=torch.float32))
+        if tp.get('embedding') is None:
+            self.embedding = nn.Embedding(tp.vocab_size, tp.embedding_dim)
+        else:
+            self.embedding = nn.Embedding.from_pretrained(torch.tensor(tp.embedding, dtype=torch.float32))
         self.loss_fn = tp.loss_fn
         self.label_size = tp.label_size
 
@@ -46,7 +49,7 @@ class Textrnn(nn.Module):
         logits = self.fc(x)
         output = (logits,)
 
-        if features.get('label_ids', None) is not None:
-            loss = self.loss_fn(logits, features['label_ids'])
+        if features.get('label') is not None:
+            loss = self.loss_fn(logits, features['label'])
             output += (loss,)
         return output

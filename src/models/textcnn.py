@@ -4,9 +4,12 @@ from torch import nn
 
 
 class Textcnn(nn.Module):
-    def __init__(self, tp, embedding=None):
+    def __init__(self, tp):
         super(Textcnn, self).__init__()
-        self.embedding = nn.Embedding.from_pretrained(torch.tensor(embedding, dtype=torch.float32))
+        if tp.get('embedding') is None:
+            self.embedding = nn.Embedding(tp.vocab_size, tp.embedding_dim)
+        else:
+            self.embedding = nn.Embedding.from_pretrained(torch.tensor(tp.embedding, dtype=torch.float32))
         self.loss_fn = tp.loss_fn
         self.label_size = tp.label_size
 
@@ -31,8 +34,8 @@ class Textcnn(nn.Module):
         logits = self.fc(x)
         output = (logits,)
 
-        if features.get('label_ids', None) is not None:
-            loss = self.loss_fn(logits, features['label_ids'])
+        if features.get('label') is not None:
+            loss = self.loss_fn(logits, features['label'])
             output += (loss,)
         return output
 
@@ -42,9 +45,12 @@ class Textcnn2(nn.Module):
     2层CNN + 2层FC
     """
 
-    def __init__(self, tp, embedding=None):
+    def __init__(self, tp):
         super(Textcnn2, self).__init__()
-        self.embedding = nn.Embedding.from_pretrained(torch.tensor(embedding, dtype=torch.float32))
+        if tp.get('embedding') is None:
+            self.embedding = nn.Embedding(tp.vocab_size, tp.embedding_dim)
+        else:
+            self.embedding = nn.Embedding.from_pretrained(torch.tensor(tp.embedding, dtype=torch.float32))
         self.loss_fn = tp.loss_fn
         self.label_size = tp.label_size
 
@@ -72,15 +78,15 @@ class Textcnn2(nn.Module):
             nn.Linear(tp.hidden_size, tp.label_size)
         )
 
-    def forward(self, token_ids, label_ids=None):
-        emb = self.embedding(token_ids)  # (batch_size, seq_len, emb_dim)
+    def forward(self, features):
+        emb = self.embedding(features['token_ids'])  # (batch_size, seq_len, emb_dim)
         emb = [conv(emb.permute(0, 2, 1)).squeeze(-1) for conv in
                self.convs]  # Conv1d input shape (batch_size, channel, seq_len)
         x = torch.cat(emb, dim=1)  # (batch_size, sum(filter_size))
         x = self.dropout(x)
         logits = self.fc(x)
         output = (logits,)
-        if label_ids is not None:
-            loss = self.loss_fn(logits, label_ids)
+        if features.get('label_ids') is not None:
+            loss = self.loss_fn(logits, features['label_ids'])
             output += (loss,)
         return output

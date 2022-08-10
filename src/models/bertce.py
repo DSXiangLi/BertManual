@@ -27,7 +27,7 @@ class BertSoftmax(nn.Module):
         logits = self.classifier(sequence_output)
         output = (logits,)
 
-        if features.get('label_ids', None) is not None:
+        if features.get('label_ids') is not None:
             loss = seqlabel_loss_wrapper(logits, features['label_ids'], features['attention_mask'], self.loss_fn)
             output += (loss,)
         return output

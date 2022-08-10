@@ -40,7 +40,7 @@ class BertCrf(nn.Module):
         preds = pad_sequence(preds, pad_len=features['input_ids'].size()[-1])
         outputs = (torch.tensor(preds, device=logits.device),)
 
-        if features.get('label_ids', None) is not None:
+        if features.get('label_ids') is not None:
             log_likelihood = self.crf(emissions=logits, tags=features['label_ids'],
                                       mask=features['attention_mask'].bool(), reduction='mean')
             outputs += (-1 * log_likelihood,)

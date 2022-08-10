@@ -27,7 +27,7 @@ class BertClassifier(nn.Module):
         logits = self.classifier(pooled_output)
         output = (logits,)
 
-        if features.get('label_ids', None) is not None:
-            loss = self.loss_fn(logits, features['label_ids'])
+        if features.get('label') is not None:
+            loss = self.loss_fn(logits, features['label'])
             output += (loss,)
         return output
