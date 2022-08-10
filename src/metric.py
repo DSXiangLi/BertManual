@@ -27,10 +27,10 @@ def binary_cls_metrics(model, valid_loader, device, threshold=0.5):
     val_loss = []
 
     for batch in valid_loader:
-        input_ids, token_type_ids, attention_mask, label_ids = tuple(t.to(device) for t in batch.values())
+        features = {k:v.to(device) for k,v in batch.items()}
 
         with torch.no_grad():
-            logits, loss = model(input_ids, token_type_ids, attention_mask, label_ids)
+            logits, loss = model(features)
 
         val_loss.append(loss.item())
 
@@ -38,9 +38,9 @@ def binary_cls_metrics(model, valid_loader, device, threshold=0.5):
         preds = (probs[:, 1] > threshold).int().to(device)
         for metric in metrics.values():
             if metric in ['auc', 'ap']:
-                metric.update(probs, label_ids)
+                metric.update(probs, features['label'])
             else:
-                metric.update(preds, label_ids)
+                metric.update(preds, features['label'])
 
     multi_metrics = {key: metric.compute().item() for key, metric in metrics.items()}
     multi_metrics['val_loss'] = np.mean(val_loss)
@@ -77,10 +77,10 @@ def multi_cls_metrics(model, valid_loader, device):
     val_loss = []
 
     for batch in valid_loader:
-        input_ids, token_type_ids, attention_mask, label_ids = tuple(t.to(device) for t in batch.values())
+        features = {k:v.to(device) for k,v in batch.items()}
 
         with torch.no_grad():
-            logits,loss = model(input_ids, token_type_ids, attention_mask, label_ids)
+            logits,loss = model(features)
 
         val_loss.append(loss.item())
 
@@ -88,9 +88,9 @@ def multi_cls_metrics(model, valid_loader, device):
         preds = torch.argmax(probs, dim=-1)
         for metric in metrics.values():
             if 'auc' in metric or 'ap' in metric:
-                metric.update(probs, label_ids)
+                metric.update(probs, features['label'])
             else:
-                metric.update(preds, label_ids)
+                metric.update(preds, features['label'])
 
     multi_metrics = {key: metric.compute().item() for key, metric in metrics.items()}
     multi_metrics['val_loss'] = np.mean(val_loss)
@@ -119,16 +119,16 @@ def seq_tag_metrics(model, valid_loader, device):
     val_loss = []
 
     for batch in valid_loader:
-        input_ids, token_type_ids, attention_mask, label_ids = tuple(t.to(device) for t in batch.values())
+        features = {k: v.to(device) for k, v in batch.items()}
 
         with torch.no_grad():
-            preds, loss = model(input_ids, token_type_ids, attention_mask, label_ids)
+            preds, loss = model(features)
 
         val_loss.append(loss.item())
         # apply mask to label and pred: mask CLS, SEP, PAD
-        mask = torch.logical_and(attention_mask.view(-1) == 1, label_ids.view(-1) >=0)
+        mask = torch.logical_and(features['attentino_mask'].view(-1) == 1, input['label_ids'].view(-1) >=0)
         preds = preds.view(-1)[mask]
-        label_ids = label_ids.view(-1)[mask]
+        label_ids = features['label_ids'].view(-1)[mask]
         for metric in metrics.values():
                 metric.update(preds, label_ids)
 

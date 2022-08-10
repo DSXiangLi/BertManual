@@ -3,7 +3,7 @@ import torch
 import pandas as pd
 import numpy as np
 from sklearn.metrics import roc_auc_score, average_precision_score, precision_score, recall_score, accuracy_score,\
-classification_report as tag_cls_report
+classification_report
 from seqeval.metrics import classification_report as span_cls_report
 from itertools import chain
 
@@ -15,7 +15,7 @@ def classification_inference(model, data_loader, device):
     all_probs = []
     for batch in data_loader:
         # Load batch to GPU
-        inputs = tuple(t.to(device) for t in batch.values())
+        inputs = {k: v.to(device) for k,v in batch.values()}
 
         # Compute logits
         with torch.no_grad():
@@ -31,7 +31,7 @@ def classification_inference(model, data_loader, device):
     return output
 
 
-def seqlabel_inference(data_loader, model):
+def seqlabel_inference(data_loader, model, device):
     """
     Sequence Labeling Inference
         Return: preds list[list(real seq len)]
@@ -42,11 +42,11 @@ def seqlabel_inference(data_loader, model):
     # for seqlbel predict is done on 
     for batch in data_loader:
         # Load batch to GPU
-        input_ids, token_type_ids, attention_mask, label_ids = tuple(t.to(device) for t in batch.values())
+        features = {k:v.to(device) for k,v in batch.values()}
         # Compute logits
         with torch.no_grad():
-            preds = model(input_ids, token_type_ids, attention_mask)[0]
-            mask = attention_mask[0].bool()
+            preds = model(features)[0]
+            mask = features['attention_mask'][0].bool()
         # remove PAD & CLS & SEP: real sequence len 
         preds = preds[0][mask][1:-1]
         all_preds.append(preds.tolist())
@@ -112,7 +112,7 @@ def seqlabel_report(preds, labels, idx2label):
     preds = list(chain(*preds))
     labels = list(chain(*labels))
     
-    tag_report = tag_cls_report(labels, preds, target_names=idx2label.values())
+    tag_report = classification_report(labels, preds, target_names=idx2label.values())
     labels = [idx2label[i] for i in labels]
     preds = [idx2label[i] for i in preds]
     span_report = span_cls_report([labels], [preds], digits=3)

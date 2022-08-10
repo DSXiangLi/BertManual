@@ -8,6 +8,19 @@ from collections import deque
 from glob import glob
 
 
+class TrainParams(dict):
+    """
+    Train Parameter used to initialize Model
+    """
+    __getattr__ = dict.get
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
+    @property
+    def total_train_steps(self):
+        return int(self.num_train_steps * self.epoch_size)
+
+
 def set_seed(seed_value=42):
     """Set seed for reproducibility.
     """
