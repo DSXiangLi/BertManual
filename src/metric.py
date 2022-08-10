@@ -130,7 +130,7 @@ def seq_tag_metrics(model, valid_loader, device):
         preds = preds.view(-1)[mask]
         label_ids = features['label_ids'].view(-1)[mask]
         for metric in metrics.values():
-                metric.update(preds, label_ids)
+            metric.update(preds, label_ids)
 
     multi_metrics = {key: metric.compute().item() for key, metric in metrics.items()}
     multi_metrics['val_loss'] = np.mean(val_loss)
