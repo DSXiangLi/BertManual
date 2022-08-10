@@ -15,7 +15,7 @@ def classification_inference(model, data_loader, device):
     all_probs = []
     for batch in data_loader:
         # Load batch to GPU
-        inputs = {k: v.to(device) for k,v in batch.values()}
+        inputs = {k: v.to(device) for k,v in batch.items()}
 
         # Compute logits
         with torch.no_grad():
@@ -42,7 +42,7 @@ def seqlabel_inference(data_loader, model, device):
     # for seqlbel predict is done on 
     for batch in data_loader:
         # Load batch to GPU
-        features = {k:v.to(device) for k,v in batch.values()}
+        features = {k:v.to(device) for k,v in batch.items()}
         # Compute logits
         with torch.no_grad():
             preds = model(features)[0]

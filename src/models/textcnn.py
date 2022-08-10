@@ -9,7 +9,7 @@ class Textcnn(nn.Module):
         if tp.get('embedding') is None:
             self.embedding = nn.Embedding(tp.vocab_size, tp.embedding_dim)
         else:
-            self.embedding = nn.Embedding.from_pretrained(torch.tensor(tp.embedding, dtype=torch.float32))
+            self.embedding = nn.Embedding.from_pretrained(torch.tensor(tp.embedding, dtype=torch.float32),freeze=False)
         self.loss_fn = tp.loss_fn
         self.label_size = tp.label_size
 
@@ -50,7 +50,7 @@ class Textcnn2(nn.Module):
         if tp.get('embedding') is None:
             self.embedding = nn.Embedding(tp.vocab_size, tp.embedding_dim)
         else:
-            self.embedding = nn.Embedding.from_pretrained(torch.tensor(tp.embedding, dtype=torch.float32))
+            self.embedding = nn.Embedding.from_pretrained(torch.tensor(tp.embedding, dtype=torch.float32), freeze=False)
         self.loss_fn = tp.loss_fn
         self.label_size = tp.label_size
 

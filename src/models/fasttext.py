@@ -10,7 +10,10 @@ class Fasttext(nn.Module):
 
     def __init__(self, tp):
         super(Fasttext, self).__init__()
-        self.embedding = nn.Embedding.from_pretrained(torch.tensor(tp.embedding, dtype=torch.float32))
+        if tp.get('embedding') is None:
+            self.embedding = nn.Embedding(tp.vocab_size, tp.embedding_dim)
+        else:
+            self.embedding = nn.Embedding.from_pretrained(torch.tensor(tp.embedding, dtype=torch.float32), freeze=False)
         self.projector = nn.Sequential(
             nn.Linear(tp.embedding_dim, tp.hidden_size),
             nn.BatchNorm1d(tp.hidden_size),
