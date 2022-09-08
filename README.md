@@ -14,3 +14,4 @@
 
 [Bert不完全手册6. Bert在中文领域的尝试 Bert-WWM & MacBert & ChineseBert](https://www.cnblogs.com/gogoSandy/p/16527207.html)
 
+[Bert不完全手册7. 为Bert注入知识的力量 Baidu-ERNIE & THU-ERNIE & KBert ](https://www.cnblogs.com/gogoSandy/p/16595683.html)
