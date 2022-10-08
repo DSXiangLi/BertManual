@@ -17,3 +17,5 @@
 [Bert不完全手册7. 为Bert注入知识的力量 Baidu-ERNIE & THU-ERNIE & KBert ](https://www.cnblogs.com/gogoSandy/p/16595683.html)
 
 [Bert不完全手册8. 预训练不要停！Continue Pretraining ](https://www.cnblogs.com/gogoSandy/p/16697777.html)
+
+[Bert不完全手册9. 长文本建模 BigBird & Longformer & Reformer & Performer ](https://www.cnblogs.com/gogoSandy/p/16768180.html)
